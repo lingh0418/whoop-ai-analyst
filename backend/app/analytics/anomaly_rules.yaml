@@ -1,0 +1,75 @@
+# 异常检测默认规则（可在「设置」页面按用户覆盖）
+#
+# mode:
+#   fixed    —— 只看相对个人 28 日基线的百分比偏差
+#   adaptive —— 同时参考个人波动（z-score）：
+#               偏差超过阈值但 |z| < 1（在你平时的正常波动范围内）→ 降级为 low
+#               偏差没到阈值但 |z| ≥ z（对你来说很罕见）→ 也会触发
+mode: adaptive
+
+rules:
+  hrv_drop:
+    metric: hrv
+    direction: low
+    pct: 0.15        # HRV 低于 28 日基线 15%
+    z: 1.5
+    label: HRV 异常下降
+  rhr_rise:
+    metric: rhr
+    direction: high
+    pct: 0.10        # 静息心率高于基线 10%
+    z: 1.5
+    label: 静息心率异常升高
+  sleep_short:
+    metric: sleep_duration
+    direction: low
+    pct: 0.15        # 睡眠时长少于基线 15%
+    z: 1.5
+    label: 睡眠明显减少
+  recovery_drop:
+    metric: recovery
+    direction: low
+    pct: 0.25
+    z: 1.5
+    label: Recovery 明显低于个人水平
+  strain_spike:
+    metric: strain
+    direction: high
+    pct: 0.30        # 当日 Strain 比基线高 30%
+    z: 1.5
+    label: Strain 突然增加
+  resp_rate_rise:
+    metric: resp_rate
+    direction: high
+    pct: 0.06
+    z: 2.0
+    label: 呼吸频率升高
+
+streaks:
+  recovery_low_streak:
+    metric: recovery
+    below: 50          # Recovery < 50% ...
+    min_days: 3        # ... 连续 3 天
+    label: Recovery 连续偏低
+  hrv_below_baseline_streak:
+    metric: hrv
+    min_days: 4        # 连续 N 天低于个人 28 日均值
+    label: HRV 持续低于个人基线
+  high_strain_streak:
+    metric: strain
+    above_percentile: 75   # 高于个人 90 日 P75 ...
+    min_days: 3            # ... 连续 3 天
+    label: 连续高负荷
+
+multi_metric:
+  min_signals: 3     # 同一天 ≥3 个恢复相关指标同时出现不利偏离
+  label: 多指标同步异常
+
+# 联合分析使用的“轻度偏离信号”阈值（比异常阈值更敏感，用于判断多个指标是否同向变化）
+signals:
+  hrv:            {direction: low,  pct: 0.07, z: 1.0}
+  rhr:            {direction: high, pct: 0.05, z: 1.0}
+  sleep_duration: {direction: low,  pct: 0.10, z: 1.0}
+  recovery:       {direction: low,  pct: 0.15, z: 1.0}
+  resp_rate:      {direction: high, pct: 0.04, z: 1.5}
+  skin_temp:      {direction: high, abs: 0.4,  z: 1.5}

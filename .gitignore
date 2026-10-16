@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# 数据 & 密钥
+data/
+*.db
+.env
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
+.claude/launch.json
+*.tsbuildinfo

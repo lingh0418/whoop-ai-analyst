@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      FRONTEND_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:8000
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/whoop_analyst.db}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # 需要 PostgreSQL 时：docker compose --profile postgres up -d
+  # 并在 .env 中设置 DATABASE_URL=postgresql+psycopg://whoop:whoop@db:5432/whoop_analyst
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: whoop
+      POSTGRES_PASSWORD: whoop
+      POSTGRES_DB: whoop_analyst
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

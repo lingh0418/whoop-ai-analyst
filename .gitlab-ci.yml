@@ -1,0 +1,37 @@
+stages:
+  - test
+  - build
+
+backend-test:
+  stage: test
+  image: python:3.11-slim
+  cache:
+    paths: [.cache/pip]
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  script:
+    - cd backend
+    - pip install -e ".[dev]" ruff
+    - ruff check app tests --select F,E9
+    - pytest -q
+
+frontend-build:
+  stage: test
+  image: node:20-alpine
+  cache:
+    paths: [frontend/node_modules]
+  script:
+    - cd frontend
+    - npm ci --no-audit --no-fund
+    - npm run build
+
+docker-image:
+  stage: build
+  image: docker:27
+  services: [docker:27-dind]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE" --all-tags
