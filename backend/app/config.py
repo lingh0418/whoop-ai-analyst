@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-chat"
     llm_base_url: str = "https://api.deepseek.com"
     llm_api_key: str = ""
+    # 单次回复的最大 token 数（不设置时部分服务会按模型上限预扣额度）
+    llm_max_tokens: int = 4096
 
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-5-5"

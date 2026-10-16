@@ -53,11 +53,20 @@ class BaseProvider:
 class OpenAICompatibleProvider(BaseProvider):
     name = "openai_compatible"
 
-    def __init__(self, api_key: str, base_url: str, model: str):
+    def __init__(self, api_key: str, base_url: str, model: str, max_tokens: int = 4096):
         from openai import OpenAI
 
         self.client = OpenAI(api_key=api_key, base_url=base_url or None, timeout=120)
         self.model = model
+        self.max_tokens = max_tokens
+
+    def _error(self, e: Exception) -> LLMError:
+        body = getattr(e, "body", None)
+        msg = body.get("message") if isinstance(body, dict) else None
+        if msg is None and isinstance(body, dict) and isinstance(body.get("error"), dict):
+            msg = body["error"].get("message")
+        status = getattr(e, "status_code", None)
+        return LLMError(f"{self.model} 调用失败{f'（HTTP {status}）' if status else ''}：{msg or e}")
 
     @staticmethod
     def _tool_specs(tools: list) -> list[dict]:
@@ -80,6 +89,7 @@ class OpenAICompatibleProvider(BaseProvider):
                     messages=messages,
                     tools=specs,
                     tool_choice="none" if force_answer else "auto",
+                    max_tokens=self.max_tokens,
                 )
                 msg = resp.choices[0].message
                 if not msg.tool_calls or force_answer:
@@ -105,20 +115,20 @@ class OpenAICompatibleProvider(BaseProvider):
                     trace.append({"name": c.function.name, "args": args, "result": _summarize_result(result)})
                     messages.append({"role": "tool", "tool_call_id": c.id, "content": result})
         except APIError as e:
-            raise LLMError(f"{self.model} 调用失败：{e}") from e
+            raise self._error(e) from e
         return AgentTurn("", trace, self.model)
 
-    def complete(self, system, prompt, max_tokens=4000):
+    def complete(self, system, prompt, max_tokens=None):
         from openai import APIError
 
         try:
             resp = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
+                max_tokens=max_tokens or self.max_tokens,
             )
         except APIError as e:
-            raise LLMError(f"{self.model} 调用失败：{e}") from e
+            raise self._error(e) from e
         return (resp.choices[0].message.content or "").strip()
 
 
@@ -211,7 +221,7 @@ def get_provider() -> BaseProvider | None:
     s = get_settings()
     kind = (s.llm_provider or "none").lower()
     if kind == "openai_compatible" and s.llm_api_key:
-        return OpenAICompatibleProvider(s.llm_api_key, s.llm_base_url, s.llm_model)
+        return OpenAICompatibleProvider(s.llm_api_key, s.llm_base_url, s.llm_model, s.llm_max_tokens)
     if kind == "anthropic":
         return AnthropicProvider(s.anthropic_api_key, s.anthropic_model, s.anthropic_effort, s.anthropic_enable_fallbacks)
     return None

@@ -34,6 +34,7 @@ def test_openai_compatible_tool_loop():
     assert turn.text == "HRV 比基线低 14%。"
     assert log == [("get_hrv_history", {"days": 28})]
     assert calls[0]["tools"][0]["type"] == "function"
+    assert calls[0]["max_tokens"] == 4096  # 必须显式限制，否则部分服务按模型上限预扣额度
     assert calls[0]["messages"][0]["role"] == "system"
 
 
